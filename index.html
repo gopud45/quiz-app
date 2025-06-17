@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coding Quiz Challenge</title>
+    <!-- Link to Font Awesome for icons (checkmarks, crosses) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <!-- Link to Google Fonts for 'Poppins' font -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <!-- Tone.js library for generating sound effects directly in the browser -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.min.js"></script>
+
+    <style>
+        /* --- General Body Styles --- */
+        body {
+            font-family: 'Poppins', sans-serif; /* Apply Poppins font throughout */
+            background-color: #1a1a1a; /* Dark background color, matching the reference image */
+            display: flex; /* Use flexbox for centering content */
+            justify-content: center; /* Center horizontally */
+            align-items: center; /* Center vertically */
+            min-height: 100vh; /* Ensure body takes at least full viewport height */
+            margin: 0; /* Remove default body margin */
+            color: #ffffff; /* Default text color to white for contrast */
+            box-sizing: border-box; /* Include padding and border in element's total width and height */
+            padding: 20px; /* Add some padding around the quiz container for smaller screens */
+            overflow: hidden; /* Prevent body overflow during animations like shake */
+        }
+
+        /* --- Quiz Container Styles --- */
+        .quiz-container {
+            background-color: #2c2c2c; /* Slightly lighter dark background for the quiz box */
+            border-radius: 15px; /* Rounded corners for the container */
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4); /* Stronger shadow for better depth on dark background */
+            width: 100%; /* Make container full width on smaller screens */
+            max-width: 600px; /* Limit maximum width on larger screens */
+            padding: 30px; /* Internal padding within the quiz container */
+            text-align: center; /* Center align text inside the container */
+            opacity: 0; /* Initially hidden for fade-in animation */
+            transform: translateY(20px); /* Start slightly below for slide-up effect */
+            animation: fadeInSlideUp 0.8s forwards; /* Apply fade-in and slide-up animation */
+            position: relative; /* Needed for positioning the loading spinner */
+            border: 1px solid rgba(255, 255, 255, 0.1); /* Subtle light border */
+        }
+
+        /* --- Loading Spinner Styles --- */
+        .loading-spinner {
+            border: 4px solid rgba(255, 255, 255, 0.2); /* Light border for the spinner */
+            border-top: 4px solid #007bff; /* Blue accent color for the top part, creating the spinning effect */
+            border-radius: 50%; /* Make it a perfect circle */
+            width: 30px; /* Spinner width */
+            height: 30px; /* Spinner height */
+            animation: spin 1s linear infinite; /* Spin animation */
+            position: absolute; /* Position relative to .quiz-container */
+            top: 50%; /* Center vertically */
+            left: 50%; /* Center horizontally */
+            transform: translate(-50%, -50%); /* Adjust for accurate centering */
+            display: flex; /* Display as flex to be visible */
+            z-index: 10; /* Ensure spinner is on top of other content */
+        }
+
+        @keyframes spin {
+            0% { transform: translate(-50%, -50%) rotate(0deg); } /* Start at 0 degrees */
+            100% { transform: translate(-50%, -50%) rotate(360deg); } /* End at 360 degrees */
+        }
+
+        @keyframes fadeInSlideUp {
+            from {
+                opacity: 0; /* Start invisible */
+                transform: translateY(20px); /* Start slightly down */
+            }
+            to {
+                opacity: 1; /* Fully visible */
+                transform: translateY(0); /* Move to original position */
+            }
+        }
+
+        /* --- Result Feedback Animations (Applied to .quiz-container) --- */
+        /* Animation for a high score: a subtle bounce */
+        @keyframes happyBounce {
+            0%, 20%, 50%, 80%, 100% { transform: translateY(0); } /* At these points, back to normal position */
+            40% { transform: translateY(-10px); } /* Bounce up */
+            60% { transform: translateY(-5px); } /* Slightly less bounce down */
+        }
+
+        /* Animation for a low score: a slight shake */
+        @keyframes sadShake {
+            0%, 100% { transform: translateX(0); } /* At start/end, no horizontal movement */
+            10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); } /* Shake left */
+            20%, 40%, 60%, 80% { transform: translateX(5px); } /* Shake right */
+        }
+
+        /* Animation for an average score: a gentle pulse (scaling and shadow) */
+        @keyframes averagePulse {
+            0% { transform: scale(1); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4); } /* Normal state */
+            50% { transform: scale(1.01); box-shadow: 0 12px 35px rgba(0, 0, 0, 0.5); } /* Slightly larger, more pronounced shadow */
+            100% { transform: scale(1); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4); } /* Back to normal */
+        }
+
+        /* Applying the animations via classes */
+        .quiz-container.animate-happy {
+            animation: happyBounce 0.8s ease-in-out;
+        }
+        .quiz-container.animate-sad {
+            animation: sadShake 0.6s ease-in-out;
+        }
+        .quiz-container.animate-average {
+            animation: averagePulse 1s infinite alternate ease-in-out;
+        }
+
+
+        /* --- Quiz Header Styles --- */
+        .quiz-header h1 {
+            font-size: 2.2em; /* Large font size for the main title */
+            color: #ffffff; /* White text for the title */
+            margin-bottom: 25px; /* Space below the title */
+            font-weight: 700; /* Bold font weight */
+        }
+
+        /* --- Question Area Styles --- */
+        .question-area {
+            margin-bottom: 25px; /* Space below the question area */
+            min-height: 100px; /* Ensures consistent height even with short questions */
+        }
+
+        .question-area h2 {
+            font-size: 1.5em; /* Font size for question text */
+            color: #e0e0e0; /* Light grey for question text */
+            margin-bottom: 20px; /* Space below the question text */
+            line-height: 1.4; /* Improve readability for multi-line questions */
+            font-weight: 600; /* Semi-bold font weight */
+        }
+
+        /* --- Progress Bar Styles --- */
+        .progress-container {
+            width: 100%; /* Full width container for the progress bar */
+            background-color: #4a4a4a; /* Dark background for the empty part of the bar */
+            border-radius: 5px; /* Rounded corners for the container */
+            margin-bottom: 20px; /* Space below the progress bar */
+            overflow: hidden; /* Ensures the inner bar stays within rounded corners */
+        }
+
+        .progress-bar {
+            height: 10px; /* Height of the progress bar */
+            width: 0%; /* Starts at 0% width */
+            background-color: #007bff; /* Blue accent color for the filled part */
+            border-radius: 5px; /* Rounded corners for the filled bar */
+            transition: width 0.3s ease-in-out; /* Smooth transition when width changes */
+        }
+
+        /* --- Options Grid Styles --- */
+        .options-grid {
+            display: grid; /* Use CSS Grid for layout */
+            grid-template-columns: 1fr; /* Single column on mobile by default */
+            gap: 15px; /* Space between option buttons */
+            margin-bottom: 30px; /* Space below the options grid */
+        }
+
+        /* --- Option Button Styles --- */
+        .option-button {
+            background-color: #3a3a3a; /* Dark background for option buttons */
+            border: 2px solid #555555; /* Slightly lighter dark border */
+            border-radius: 10px; /* Rounded corners for buttons */
+            padding: 15px 20px; /* Internal padding */
+            font-size: 1.1em; /* Font size for option text */
+            text-align: left; /* Align text to the left */
+            cursor: pointer; /* Change cursor to pointer on hover */
+            transition: all 0.3s ease; /* Smooth transition for hover effects */
+            color: #f0f0f0; /* Light text color */
+            display: flex; /* Use flexbox for icon alignment */
+            align-items: center; /* Vertically center icon and text */
+            position: relative; /* Needed for positioning the status icon */
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1); /* Subtle shadow */
+        }
+
+        /* Hover effect for option buttons (not applied to correct/incorrect/disabled) */
+        .option-button:hover:not(.correct):not(.incorrect):not(.disabled) {
+            background-color: #4a4a4a; /* Lighter dark on hover */
+            border-color: #666666; /* Lighter border on hover */
+        }
+
+        /* Style for the currently selected option */
+        .option-button.selected {
+            border-color: #007bff; /* Blue accent border */
+            background-color: #004d99; /* Darker blue background when selected */
+            color: #ffffff; /* White text when selected */
+        }
+
+        /* Styles for correct answer feedback */
+        .option-button.correct {
+            background-color: #28a745; /* Standard green background */
+            border-color: #28a745; /* Green border */
+            color: #ffffff; /* White text for contrast */
+            box-shadow: 0 0 10px rgba(40, 167, 69, 0.5); /* Green glow */
+        }
+
+        /* Styles for incorrect answer feedback */
+        .option-button.incorrect {
+            background-color: #dc3545; /* Standard red background */
+            border-color: #dc3545; /* Red border */
+            color: #ffffff; /* White text for contrast */
+            box-shadow: 0 0 10px rgba(220, 53, 69, 0.5); /* Red glow */
+        }
+
+        /* Styles for disabled option buttons (after selection) */
+        .option-button.disabled {
+            cursor: not-allowed; /* Change cursor to "not allowed" */
+            opacity: 0.6; /* Slightly fade out disabled options */
+        }
+
+        /* Icon styling within option buttons */
+        .option-button i {
+            margin-right: 10px; /* Space between icon and text */
+            font-size: 1.2em; /* Size of the icon */
+        }
+
+        /* --- Navigation Buttons (Next/Restart) Styles --- */
+        .navigation-buttons {
+            display: flex; /* Use flexbox for button layout */
+            justify-content: space-between; /* Space buttons evenly */
+            margin-top: 20px; /* Space above buttons */
+        }
+
+        .action-button {
+            background-color: #007bff; /* Primary blue accent from the image */
+            color: white; /* White text */
+            border: none; /* No border */
+            border-radius: 25px; /* Highly rounded corners */
+            padding: 12px 25px; /* Internal padding */
+            font-size: 1.1em; /* Font size */
+            cursor: pointer; /* Pointer cursor on hover */
+            transition: all 0.3s ease; /* Smooth transitions for hover/active states */
+            font-weight: 600; /* Semi-bold font */
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3); /* Stronger shadow */
+            flex-grow: 1; /* Allow buttons to grow and fill available space */
+            margin: 0 5px; /* Small margin between buttons */
+        }
+
+        /* Hover effect for action buttons */
+        .action-button:hover {
+            background-color: #0056b3; /* Darker blue on hover */
+            transform: translateY(-3px); /* Slight lift effect */
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4); /* More pronounced shadow on hover */
+        }
+
+        /* Active (click) effect for action buttons */
+        .action-button:active {
+            transform: translateY(0); /* Return to original position */
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3); /* Smaller shadow on click */
+        }
+
+        /* Styles for disabled action buttons */
+        .action-button:disabled {
+            background: #4a4a4a; /* Darker disabled background */
+            cursor: not-allowed; /* Change cursor to "not allowed" */
+            box-shadow: none; /* Remove shadow */
+            transform: none; /* Remove any transform */
+            color: #b0b0b0; /* Lighter text for disabled */
+        }
+
+        /* --- Results Area Styles --- */
+        .results-area {
+            display: none; /* Hidden initially */
+            margin-top: 30px; /* Space above the results area */
+        }
+
+        .results-area h2 {
+            font-size: 2em; /* Large font for "Quiz Completed!" */
+            color: #ffffff; /* White text */
+            margin-bottom: 15px; /* Space below heading */
+        }
+
+        .results-area p {
+            font-size: 1.2em; /* Font size for score message */
+            color: #e0e0e0; /* Light grey text */
+            margin-bottom: 25px; /* Space below message */
+        }
+
+        .score-display {
+            font-size: 2.5em; /* Very large font for the score */
+            font-weight: 700; /* Bold font */
+            color: #007bff; /* Blue accent for the score */
+            margin-bottom: 20px; /* Space below the score */
+        }
+
+        /* --- Correct/Incorrect Icons within Options --- */
+        .option-button .status-icon {
+            position: absolute; /* Position relative to the option button */
+            right: 15px; /* Distance from the right edge */
+            font-size: 1.5em; /* Size of the icon */
+        }
+        .option-button.correct .status-icon {
+            color: #28a745; /* Green color for correct icon */
+        }
+        .option-button.incorrect .status-icon {
+            color: #dc3545; /* Red color for incorrect icon */
+        }
+
+        /* --- Footer Styles --- */
+        .quiz-footer {
+            margin-top: 30px; /* Space above the footer */
+            font-size: 0.9em; /* Smaller font size for footer text */
+            color: #b0b0b0; /* Light grey footer text */
+        }
+
+        /* --- Responsive Design (Media Queries) --- */
+        /* For screens wider than 768px (tablets and desktops) */
+        @media (min-width: 768px) {
+            .options-grid {
+                grid-template-columns: 1fr 1fr; /* Two columns for options */
+            }
+            .action-button {
+                padding: 15px 30px; /* Larger padding for action buttons */
+            }
+        }
+        /* For screens smaller than 480px (extra small mobiles) */
+        @media (max-width: 480px) {
+            .quiz-container {
+                padding: 20px; /* Slightly less padding for very small screens */
+                border-radius: 10px; /* Slightly smaller border-radius */
+            }
+            .quiz-header h1 {
+                font-size: 1.8em; /* Smaller header title */
+            }
+            .question-area h2 {
+                font-size: 1.3em; /* Smaller question text */
+            }
+            .option-button {
+                padding: 12px 15px; /* Smaller padding for option buttons */
+                font-size: 1em; /* Smaller font size for options */
+            }
+            .action-button {
+                padding: 10px 20px; /* Smaller padding for action buttons */
+                font-size: 1em; /* Smaller font size for action buttons */
+            }
+            .navigation-buttons {
+                flex-direction: column; /* Stack buttons vertically */
+                gap: 10px; /* Space between stacked buttons */
+            }
+             .action-button {
+                margin: 0; /* Remove horizontal margin when stacked */
+             }
+        }
+    </style>
+</head>
+<body>
+    <!-- Loading spinner shown before the quiz content appears -->
+    <div class="loading-spinner" id="loadingSpinner"></div>
+
+    <!-- Main Quiz Container -->
+    <div class="quiz-container" id="quizContainer">
+        <!-- Quiz Header -->
+        <div class="quiz-header">
+            <h1>Coding Quiz Challenge!</h1>
+        </div>
+
+        <!-- Quiz Content Area (visible during the quiz) -->
+        <div class="quiz-content" id="quizContent">
+            <!-- Progress Bar -->
+            <div class="progress-container">
+                <div class="progress-bar" id="progressBar"></div>
+            </div>
+            <!-- Question Display Area -->
+            <div class="question-area">
+                <h2 id="questionText">Loading question...</h2>
+            </div>
+            <!-- Options Grid where answer buttons are displayed -->
+            <div class="options-grid" id="optionsGrid">
+                <!-- Option buttons will be generated here by JavaScript -->
+            </div>
+            <!-- Navigation Buttons -->
+            <div class="navigation-buttons">
+                <button class="action-button" id="nextButton" disabled>Next Question</button>
+                <button class="action-button" id="restartButton" style="display: none;">Restart Quiz</button>
+            </div>
+        </div>
+
+        <!-- Results Area (visible after the quiz is completed) -->
+        <div class="results-area" id="resultsArea">
+            <h2>Quiz Completed!</h2>
+            <!-- Message indicating performance (e.g., "Excellent job!") -->
+            <p id="resultMessage">You scored:</p>
+            <!-- Displays the final score -->
+            <div class="score-display" id="finalScore">0 / 0</div>
+            <!-- Button to retake the entire quiz -->
+            <button class="action-button" id="retakeQuizButton">Retake Quiz</button>
+        </div>
+
+        <!-- Quiz Footer -->
+        <div class="quiz-footer">
+            <p>&copy; 2025 Quiz App</p>
+        </div>
+    </div>
+
+    <script>
+        /* --- Quiz Questions Data (this will now be dynamically populated) --- */
+        let shuffledQuizData = []; // This array will hold questions fetched from the API
+
+        /* --- DOM Element References --- */
+        // Get references to all necessary HTML elements by their IDs
+        const quizContainer = document.getElementById('quizContainer');
+        const loadingSpinner = document.getElementById('loadingSpinner');
+        const questionTextElement = document.getElementById('questionText');
+        const optionsGridElement = document.getElementById('optionsGrid');
+        const nextQuestionButton = document.getElementById('nextButton');
+        const restartQuizButton = document.getElementById('restartButton');
+        const resultsArea = document.getElementById('resultsArea');
+        const finalScoreDisplay = document.getElementById('finalScore');
+        const retakeQuizButton = document.getElementById('retakeQuizButton');
+        const progressBar = document.getElementById('progressBar');
+        const resultMessageElement = document.getElementById('resultMessage');
+        const quizContent = document.getElementById('quizContent'); // Reference to quiz content wrapper
+
+
+        /* --- Quiz State Variables --- */
+        // Keep track of the current question, user's score, selected option, and quiz status
+        let currentQuestionIndex = 0; // Tracks which question is currently displayed
+        let userScore = 0;          // Stores the number of correct answers
+        let selectedUserOption = null; // Stores the index of the option the user clicked
+        let isQuizActive = false;    // A flag to prevent interaction when quiz is paused/over
+
+        /* --- Tone.js Synthesizers for Sound Effects --- */
+        // These synths are configured to produce different sounds for happy, average, and sad outcomes.
+        const happySynth = new Tone.PolySynth(Tone.Synth, {
+            oscillator: { type: "sine" },
+            envelope: { attack: 0.05, decay: 0.1, sustain: 0.2, release: 0.5 }
+        }).toDestination(); // Connects the synth output to your speakers
+
+        const averageSynth = new Tone.Synth({
+            oscillator: { type: "triangle" },
+            envelope: { attack: 0.02, decay: 0.2, sustain: 0.1, release: 0.3 }
+        }).toDestination();
+
+        const sadSynth = new Tone.Synth({
+            oscillator: { type: "sawtooth" },
+            envelope: { attack: 0.01, decay: 0.3, sustain: 0.1, release: 0.4 }
+        }).toDestination();
+
+
+        /* --- Sound Effect Functions --- */
+        // Functions to play specific notes or chords for feedback
+        function playHappySound() {
+            happySynth.triggerAttackRelease(["C5", "E5", "G5"], "8n"); // Plays a cheerful C major chord
+        }
+
+        function playAverageSound() {
+            averageSynth.triggerAttackRelease("C4", "4n"); // Plays a neutral C note
+        }
+
+        function playSadSound() {
+            sadSynth.triggerAttackRelease("C3", "4n"); // Plays a low C note
+            setTimeout(() => sadSynth.triggerAttackRelease("B2", "4n"), 150); // Follows with a slightly dissonant B note for a "sad" feel
+        }
+
+        /* --- Progress Bar Update Function --- */
+        // Calculates and updates the width of the progress bar based on current question
+        function updateQuizProgressBar() {
+            // Calculate progress based on current question index and total number of questions
+            const totalQuestions = shuffledQuizData.length > 0 ? shuffledQuizData.length : 1; // Avoid division by zero
+            const progressPercentage = (currentQuestionIndex / totalQuestions) * 100;
+            progressBar.style.width = `${progressPercentage}%`;
+        }
+
+        /* --- Fetch Questions from API Function --- */
+        // Fetches new coding quiz questions from the Gemini API
+        async function fetchQuestionsFromAPI() {
+            // Show loading spinner and hide quiz content while fetching
+            loadingSpinner.style.display = 'flex';
+            quizContent.style.display = 'none';
+            questionTextElement.textContent = "Fetching new questions..."; // Provide feedback to user
+
+            let chatHistory = [];
+            const prompt = "Generate 10 multiple-choice coding quiz questions suitable for 10-12 grade students. Each question should have a 'question' string, an 'options' array of 4 strings, and an 'answer' integer (0-indexed for the correct option). Ensure variety in HTML, CSS, JavaScript, and general programming concepts. Return as a JSON array of objects.";
+
+            chatHistory.push({ role: "user", parts: [{ text: prompt }] });
+
+            const payload = {
+                contents: chatHistory,
+                generationConfig: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: "ARRAY",
+                        items: {
+                            type: "OBJECT",
+                            properties: {
+                                "question": { "type": "STRING" },
+                                "options": {
+                                    "type": "ARRAY",
+                                    "items": { "type": "STRING" }
+                                },
+                                "answer": { "type": "NUMBER" }
+                            },
+                            "propertyOrdering": ["question", "options", "answer"]
+                        }
+                    }
+                }
+            };
+
+            const apiKey = ""; // Canvas will automatically provide the API key
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`API error: ${response.status} ${response.statusText}`);
+                }
+
+                const result = await response.json();
+
+                if (result.candidates && result.candidates.length > 0 &&
+                    result.candidates[0].content && result.candidates[0].content.parts &&
+                    result.candidates[0].content.parts.length > 0) {
+                    
+                    const jsonString = result.candidates[0].content.parts[0].text;
+                    // Attempt to parse the JSON string. Sometimes the LLM might return
+                    // valid JSON but with extra formatting like markdown code blocks.
+                    let parsedJson;
+                    try {
+                        // Remove markdown code block fences if present
+                        const cleanJsonString = jsonString.replace(/```json\n|\n```/g, '').trim();
+                        parsedJson = JSON.parse(cleanJsonString);
+                    } catch (parseError) {
+                        console.error("Failed to parse JSON response:", parseError);
+                        console.error("Raw JSON string:", jsonString);
+                        throw new Error("Invalid JSON format received from API.");
+                    }
+
+                    if (Array.isArray(parsedJson) && parsedJson.every(q => typeof q.question === 'string' && Array.isArray(q.options) && typeof q.answer === 'number')) {
+                        shuffledQuizData = parsedJson; // Store the fetched questions
+                        console.log("Questions fetched successfully:", shuffledQuizData);
+                    } else {
+                        throw new Error("Fetched data is not in the expected quiz question format.");
+                    }
+                } else {
+                    throw new Error("No content received from API.");
+                }
+            } catch (error) {
+                console.error("Error fetching questions:", error);
+                // Fallback to a hardcoded set of questions if API fails
+                // Or display an error message to the user
+                questionTextElement.textContent = "Failed to fetch new questions. Using default set.";
+                shuffledQuizData = [
+                    { question: "What is HTML?", options: ["A programming language", "A markup language", "A styling language", "A database"], answer: 1 },
+                    { question: "Which CSS property controls the spacing between lines of text?", options: ["line-height", "text-spacing", "letter-spacing", "word-spacing"], answer: 0 },
+                    { question: "How do you write 'Hello World' in an alert box using JavaScript?", options: ["alertBox('Hello World');", "msg('Hello World');", "alert('Hello World');", "msgBox('Hello World');"], answer: 2 },
+                    { question: "What does DOM stand for?", options: ["Document Object Model", "Displaying Object Menu", "Digital Order Module", "Direct Object Mapping"], answer: 0 },
+                    { question: "Which symbol is used for comments in single-line JavaScript?", options: ["//", "/* */", "#", "--"], answer: 0 }
+                ];
+            } finally {
+                loadingSpinner.style.display = 'none'; // Hide spinner
+                quizContent.style.display = 'block';   // Show quiz content
+            }
+        }
+
+        /* --- Array Shuffling Function (Fisher-Yates) --- */
+        // Randomly shuffles the elements of an array.
+        // This is crucial for presenting "random" questions from our expanded pool.
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]]; // Swap elements
+            }
+        }
+
+        /* --- Quiz Initialization / Restart Function --- */
+        // Sets up the quiz for a new game or restart
+        async function startNewQuiz() { // Made async to await question fetching
+            currentQuestionIndex = 0; // Reset question index
+            userScore = 0;          // Reset score
+            selectedUserOption = null; // Clear any previously selected option
+            isQuizActive = true;     // Set quiz status to active
+
+            // Remove any result animation classes from previous quiz rounds
+            quizContainer.classList.remove('animate-happy', 'animate-sad', 'animate-average');
+
+            // Fetch questions before starting the quiz
+            await fetchQuestionsFromAPI();
+
+            // Ensure we have questions to proceed, if not, something went wrong with API/fallback
+            if (shuffledQuizData.length === 0) {
+                questionTextElement.textContent = "Could not load questions. Please try again.";
+                nextQuestionButton.disabled = true;
+                return;
+            }
+
+            // Show the main quiz content and hide the results area
+            quizContent.style.display = 'block';
+            resultsArea.style.display = 'none';
+            nextQuestionButton.style.display = 'inline-block'; // Ensure next button is visible
+            restartQuizButton.style.display = 'none'; // Hide the restart button initially
+
+            loadCurrentQuestion(); // Load the very first question
+            updateQuizProgressBar(); // Initialize progress bar to 0%
+        }
+
+        /* --- Load Question Function --- */
+        // Displays the current question and its options
+        function loadCurrentQuestion() {
+            // Disable the 'Next Question' button until the user selects an option
+            nextQuestionButton.disabled = true;
+
+            // Show the 'Restart Quiz' button only if it's not the first question
+            // (i.e., if the user has already answered at least one question)
+            if (currentQuestionIndex > 0) {
+                restartQuizButton.style.display = 'inline-block';
+            } else {
+                restartQuizButton.style.display = 'none';
+            }
+
+            // Check if there are more questions to load from the shuffled data
+            if (currentQuestionIndex < shuffledQuizData.length) {
+                const currentQuestion = shuffledQuizData[currentQuestionIndex];
+                questionTextElement.textContent = currentQuestion.question; // Update question text
+
+                optionsGridElement.innerHTML = ''; // Clear any old options from the grid
+
+                // Create and add buttons for each option
+                currentQuestion.options.forEach((optionText, index) => {
+                    const optionButton = document.createElement('button');
+                    optionButton.classList.add('option-button');
+                    optionButton.textContent = optionText;
+                    optionButton.setAttribute('data-index', index); // Store the option's index
+
+                    // Add a placeholder icon for feedback (check/cross)
+                    const statusIcon = document.createElement('i');
+                    statusIcon.classList.add('status-icon');
+                    optionButton.appendChild(statusIcon);
+
+                    // Attach an event listener to handle option clicks
+                    optionButton.addEventListener('click', () => selectQuizOption(optionButton, index));
+                    optionsGridElement.appendChild(optionButton); // Add button to the grid
+                });
+                updateQuizProgressBar(); // Update progress bar after question loads
+            } else {
+                // If no more questions, the quiz is finished
+                displayQuizResults();
+            }
+        }
+
+        /* --- Select Option Function --- */
+        // Handles the user's selection of an answer option
+        function selectQuizOption(clickedButton, selectedIndex) {
+            if (!isQuizActive) return; // Do nothing if quiz is not active
+
+            // Find and remove 'selected' class from any previously selected option
+            const currentlySelectedButton = document.querySelector('.option-button.selected');
+            if (currentlySelectedButton) {
+                currentlySelectedButton.classList.remove('selected');
+            }
+
+            // Add 'selected' class to the button that was just clicked
+            clickedButton.classList.add('selected');
+            selectedUserOption = selectedIndex; // Store the index of the user's choice
+            nextQuestionButton.disabled = false; // Enable the 'Next Question' button
+        }
+
+        /* --- Check Answer and Advance Function --- */
+        // Verifies the selected answer and moves to the next question
+        function checkAnswerAndMoveToNext() {
+            if (selectedUserOption === null) {
+                console.warn("Please select an option before proceeding."); // Log a warning if no option is selected
+                return;
+            }
+
+            // Get the current question from the shuffled data
+            const currentQuestion = shuffledQuizData[currentQuestionIndex];
+            const allOptionButtons = optionsGridElement.querySelectorAll('.option-button');
+
+            // Disable all option buttons to prevent further clicks for the current question
+            allOptionButtons.forEach(button => button.classList.add('disabled'));
+
+            // Provide visual feedback (green for correct, red for incorrect)
+            allOptionButtons.forEach((button, index) => {
+                const icon = button.querySelector('.status-icon'); // Get the icon element
+                if (index === currentQuestion.answer) {
+                    button.classList.add('correct'); // Mark the correct answer
+                    icon.classList.add('fas', 'fa-check-circle'); // Add checkmark icon
+                } else if (index === selectedUserOption) {
+                    button.classList.add('incorrect'); // Mark the user's incorrect answer
+                    icon.classList.add('fas', 'fa-times-circle'); // Add cross icon
+                }
+            });
+
+            // Increment the score if the user's selection was correct
+            if (selectedUserOption === currentQuestion.answer) {
+                userScore++;
+            }
+
+            // Wait for a short duration to allow user to see feedback, then load next question
+            setTimeout(() => {
+                selectedUserOption = null; // Reset selected option for the next question
+                currentQuestionIndex++;     // Move to the next question
+                loadCurrentQuestion();      // Load the new question
+            }, 1000); // 1-second delay
+        }
+
+        /* --- Display Quiz Results Function --- */
+        // Shows the final score and plays appropriate sound/animation
+        function displayQuizResults() {
+            isQuizActive = false; // Set quiz status to inactive
+            quizContent.style.display = 'none'; // Hide the quiz questions
+            resultsArea.style.display = 'block'; // Show the results section
+            finalScoreDisplay.textContent = `${userScore} / ${shuffledQuizData.length}`; // Display final score against total questions answered
+
+            // Determine the feedback message and trigger animation/sound based on score
+            // Score categories: Above 7 (Excellent), 5-6 (Good), Below 5 (Keep practicing)
+            let feedbackMessage = "";
+
+            // Remove any previous animation classes to ensure the correct one is applied
+            quizContainer.classList.remove('animate-happy', 'animate-sad', 'animate-average');
+
+            if (userScore >= 7) {
+                feedbackMessage = "Excellent job! You've got strong coding skills!";
+                playHappySound();
+                quizContainer.classList.add('animate-happy'); // Apply happy animation
+            } else if (userScore >= 5 && userScore <= 6) {
+                feedbackMessage = "Good effort! You're on your way to becoming a coding pro.";
+                playAverageSound();
+                quizContainer.classList.add('animate-average'); // Apply average animation
+            } else { // Score is less than 5
+                feedbackMessage = "Keep practicing! Every line of code brings you closer to mastery.";
+                playSadSound();
+                quizContainer.classList.add('animate-sad'); // Apply sad animation
+            }
+            resultMessageElement.textContent = feedbackMessage; // Update the feedback message
+        }
+
+        /* --- Event Listeners --- */
+        // Attach event listeners to buttons to trigger functions on click
+        nextQuestionButton.addEventListener('click', checkAnswerAndMoveToNext);
+        restartQuizButton.addEventListener('click', startNewQuiz); // Restart from current quiz screen
+        retakeQuizButton.addEventListener('click', startNewQuiz); // Retake from results screen
+
+        /* --- Initial Setup on Window Load --- */
+        // This function runs when the entire page content is loaded
+        window.onload = function() {
+            // Simulate a small delay for initial content loading/setup
+            setTimeout(async () => { // Made async to await API call
+                Tone.start(); // Start Tone.js audio context on user interaction (or after slight delay)
+                await startNewQuiz(); // Begin the quiz by fetching questions
+                loadingSpinner.style.display = 'none'; // Hide the loading spinner
+                quizContainer.style.opacity = '1'; // Make the quiz container visible (fade-in)
+                quizContainer.style.transform = 'translateY(0)'; // Complete slide-up animation
+            }, 500); // 0.5 second delay
+        };
+    </script>
+</body>
+</html>
